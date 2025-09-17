@@ -2,6 +2,7 @@ substitutions:
   _REGION: "asia-northeast3"
   _ARTIFACT_REPO: "my-repo"
   _FRONTEND_BUCKET: "frontend-bucket-001"
+  _FRONTEND_SERVICE: "frontend-service"
   _BACKEND_SERVICE: "backend-service"
   _BACKEND_SA: "backend-sa@samsung-mx-test.iam.gserviceaccount.com"
 
@@ -17,29 +18,48 @@ steps:
   dir: 'frontend'
   args: ['bash','-lc','npm run build']
 
-# 2) Upload frontend build to GCS
-- name: 'gcr.io/cloud-builders/gsutil'
-  id: 'frontend:upload'
-  args: ['-m', 'rsync', '-r', 'frontend/build', 'gs://${_FRONTEND_BUCKET}']
+# 2) Frontend Docker build
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'frontend:docker_build'
+  dir: 'frontend'
+  args: ['build','-t','${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/frontend:${SHORT_SHA}','.']
 
-# 3) Backend build (maven)
+# 3) Frontend Docker push
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'frontend:docker_push'
+  args: ['push','${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/frontend:${SHORT_SHA}']
+
+# 4) Deploy frontend to Cloud Run
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  id: 'frontend:deploy'
+  entrypoint: gcloud
+  args:
+    - 'run'
+    - 'deploy'
+    - '${_FRONTEND_SERVICE}'
+    - '--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/frontend:${SHORT_SHA}'
+    - '--region=${_REGION}'
+    - '--platform=managed'
+    - '--allow-unauthenticated'
+
+# 5) Backend build (maven)
 - name: 'maven:3.9-eclipse-temurin-17'
   id: 'backend:mvn'
   dir: 'backend'
   args: ['mvn','-B','package','-DskipTests']
 
-# 4) Docker build backend
+# 6) Backend Docker build
 - name: 'gcr.io/cloud-builders/docker'
   id: 'backend:docker_build'
   dir: 'backend'
   args: ['build','-t','${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/backend:${SHORT_SHA}','.']
 
-# 5) Docker push to Artifact Registry
+# 7) Backend Docker push
 - name: 'gcr.io/cloud-builders/docker'
   id: 'backend:docker_push'
   args: ['push','${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/backend:${SHORT_SHA}']
 
-# 6) Deploy to Cloud Run (use Cloud Build service account, run as _BACKEND_SA)
+# 8) Deploy backend to Cloud Run
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
   id: 'backend:deploy'
   entrypoint: gcloud
@@ -55,6 +75,7 @@ steps:
     - '--set-env-vars=PROJECT_ID=$PROJECT_ID,vertex.location=${_REGION},gcs.output.bucket=${_FRONTEND_BUCKET}'
 
 images:
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/frontend:${SHORT_SHA}'
   - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/backend:${SHORT_SHA}'
 
 options:
