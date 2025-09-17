@@ -1,38 +1,49 @@
-import React from "react";
+import React, { useState } from "react";
 
 function App() {
-  const [prompt, setPrompt] = useState();
-  const [imageUrl, setImageUrl] = useState();
+  const [prompt, setPrompt] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
 
-  const generate = async () = {
-    const res = await fetch(apigenerate, {  Cloud Run backend가 리버스 프록시도메인으로 연결되면 api로 사용
-      method POST,
-      headers { Content-Type applicationjson },
-      body JSON.stringify({ prompt })
-    });
-    const json = await res.json();
-     backend는 GCS에 저장된 public URL 또는 signed URL을 반환한다고 가정
-    setImageUrl(json.imageUrl);
+  // 이미지 생성 요청 함수
+  const generate = async () => {
+    try {
+      const res = await fetch("/api/generate", {
+        // ✅ Cloud Run backend가 /api/generate 로 연결된다고 가정
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+
+      const json = await res.json();
+      // ✅ backend는 GCS public URL 또는 Signed URL 반환한다고 가정
+      setImageUrl(json.imageUrl);
+    } catch (err) {
+      console.error("Error generating image:", err);
+    }
   };
 
   return (
-    div style={{ padding 24 }}
-      h1Generate Image (Vertex AI)h1
-      textarea rows={4} cols={60}
+    <div style={{ padding: 24 }}>
+      <h1>Generate Image (Vertex AI)</h1>
+
+      <textarea
+        rows={4}
+        cols={60}
         value={prompt}
-        onChange={(e)=setPrompt(e.target.value)}
-        placeholder=Describe the image...
-      
-      br
-      button onClick={generate}Generatebutton
+        onChange={(e) => setPrompt(e.target.value)}
+        placeholder="Describe the image..."
+      />
+
+      <br />
+      <button onClick={generate}>Generate</button>
 
       {imageUrl && (
-        div style={{ marginTop 16 }}
-          h3Resulth3
-          img src={imageUrl} alt=generated style={{maxWidth'100%'}}
-        div
+        <div style={{ marginTop: 16 }}>
+          <h3>Result</h3>
+          <img src={imageUrl} alt="generated" style={{ maxWidth: "100%" }} />
+        </div>
       )}
-    div
+    </div>
   );
 }
 
