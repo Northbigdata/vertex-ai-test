@@ -1,21 +1,25 @@
 import React, { useState } from "react";
 
+const BACKEND_URL = "https://backend-service-268824299811.asia-northeast3.run.app";
+
 function App() {
   const [prompt, setPrompt] = useState("");
   const [imageUrl, setImageUrl] = useState("");
 
-  // 이미지 생성 요청 함수
   const generate = async () => {
     try {
-      const res = await fetch("/api/generate", {
-        // ✅ Cloud Run backend가 /api/generate 로 연결된다고 가정
+      const res = await fetch(`${BACKEND_URL}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt }),  // ✅ prompt 값을 JSON으로 전송
       });
 
+      if (!res.ok) {
+        console.error("API error:", res.status, await res.text());
+        return;
+      }
+
       const json = await res.json();
-      // ✅ backend는 GCS public URL 또는 Signed URL 반환한다고 가정
       setImageUrl(json.imageUrl);
     } catch (err) {
       console.error("Error generating image:", err);
