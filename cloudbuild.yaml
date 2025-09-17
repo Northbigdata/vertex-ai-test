@@ -1,0 +1,58 @@
+substitutions:
+  _REGION: "asia-northeast3"
+  _ARTIFACT_REPO: "my-repo"
+  _FRONTEND_BUCKET: "frontend-bucket-001"
+  _BACKEND_SERVICE: "backend-service"
+  _BACKEND_SA: "backend-sa@samsung-mx-test.iam.gserviceaccount.com"
+
+steps:
+# 1) Frontend build
+- name: 'node:18'
+  id: 'frontend:install'
+  dir: 'frontend'
+  args: ['bash','-lc','npm install']
+
+- name: 'node:18'
+  id: 'frontend:build'
+  dir: 'frontend'
+  args: ['bash','-lc','npm run build']
+
+# 2) Upload frontend build to GCS
+- name: 'gcr.io/cloud-builders/gsutil'
+  id: 'frontend:upload'
+  args: ['-m', 'rsync', '-r', 'frontend/build', 'gs://${_FRONTEND_BUCKET}']
+
+# 3) Backend build (maven)
+- name: 'maven:3.9-eclipse-temurin-17'
+  id: 'backend:mvn'
+  dir: 'backend'
+  args: ['mvn','-B','package','-DskipTests']
+
+# 4) Docker build backend
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'backend:docker_build'
+  dir: 'backend'
+  args: ['build','-t','${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/backend:${SHORT_SHA}','.']
+
+# 5) Docker push to Artifact Registry
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'backend:docker_push'
+  args: ['push','${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/backend:${SHORT_SHA}']
+
+# 6) Deploy to Cloud Run (use Cloud Build service account, run as _BACKEND_SA)
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  id: 'backend:deploy'
+  entrypoint: gcloud
+  args:
+    - 'run'
+    - 'deploy'
+    - '${_BACKEND_SERVICE}'
+    - '--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/backend:${SHORT_SHA}'
+    - '--region=${_REGION}'
+    - '--platform=managed'
+    - '--service-account=${_BACKEND_SA}'
+    - '--allow-unauthenticated'
+    - '--set-env-vars=PROJECT_ID=$PROJECT_ID,vertex.location=${_REGION},gcs.output.bucket=${_FRONTEND_BUCKET}'
+
+images:
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/backend:${SHORT_SHA}'
