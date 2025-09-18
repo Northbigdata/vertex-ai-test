@@ -74,6 +74,15 @@ public class VertexAiClient {
         result.put("raw", json);
         // (옵션) 반환에 GCS URL을 추가하려면 generation naming convention을 사용
         // 예: gs://bucket/vertex-output/<자동 생성 파일명>.png  (실환경에서 콘솔 확인)
+		JsonNode predictions = json.path("predictions");
+        if (predictions.isArray() && predictions.size() > 0) {
+            String gcsUri = predictions.get(0).path("gcsUri").asText(null);
+            if (gcsUri != null) {
+             // GCS URI → HTTPS URL 변환
+                String httpsUrl = gcsUri.replace("gs://", "https://storage.googleapis.com/");
+                result.put("imageUrl", httpsUrl);
+    }
+}			
         return result;
     }
 }
