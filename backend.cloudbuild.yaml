@@ -1,0 +1,29 @@
+substitutions:
+  _REGION: "asia-northeast3"
+  _ARTIFACT_REPO: "my-repo"
+  _BACKEND_SERVICE: "backend-service"
+  _BACKEND_SA: "backend-sa@samsung-mx-test.iam.gserviceaccount.com"
+
+steps:
+- name: 'maven:3.9-eclipse-temurin-17'
+  dir: 'backend'
+  args: ['mvn','-B','package','-DskipTests']
+- name: 'gcr.io/cloud-builders/docker'
+  dir: 'backend'
+  args: ['build','-t','${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/backend:${SHORT_SHA}','.']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push','${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/backend:${SHORT_SHA}']
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: gcloud
+  args:
+    - 'run'
+    - 'deploy'
+    - '${_BACKEND_SERVICE}'
+    - '--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/backend:${SHORT_SHA}'
+    - '--region=${_REGION}'
+    - '--platform=managed'
+    - '--service-account=${_BACKEND_SA}'
+    - '--allow-unauthenticated'
+
+images:
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/backend:${SHORT_SHA}'

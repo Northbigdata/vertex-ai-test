@@ -1,0 +1,30 @@
+substitutions:
+  _REGION: "asia-northeast3"
+  _ARTIFACT_REPO: "my-repo"
+  _FRONTEND_SERVICE: "frontend-service"
+
+steps:
+- name: 'node:18'
+  dir: 'frontend'
+  args: ['bash','-lc','npm install']
+- name: 'node:18'
+  dir: 'frontend'
+  args: ['bash','-lc','npm run build']
+- name: 'gcr.io/cloud-builders/docker'
+  dir: 'frontend'
+  args: ['build','-t','${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/frontend:${SHORT_SHA}','.']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push','${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/frontend:${SHORT_SHA}']
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: gcloud
+  args:
+    - 'run'
+    - 'deploy'
+    - '${_FRONTEND_SERVICE}'
+    - '--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/frontend:${SHORT_SHA}'
+    - '--region=${_REGION}'
+    - '--platform=managed'
+    - '--allow-unauthenticated'
+
+images:
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO}/frontend:${SHORT_SHA}'
