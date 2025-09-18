@@ -42,6 +42,11 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>
+		<dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-storage</artifactId>
+            <version>2.40.0</version> <!-- 최신 안정 버전 사용 -->
+        </dependency>
     </dependencies>
 
     <build>
