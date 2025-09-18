@@ -8,7 +8,7 @@ function App() {
 
   const generate = async () => {
     try {
-      const res = await fetch(`${BACKEND_URL}/generate`, {
+      const res = await fetch(`${BACKEND_URL}/api/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt }),  // ✅ prompt 값을 JSON으로 전송
