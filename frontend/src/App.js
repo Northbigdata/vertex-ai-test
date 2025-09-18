@@ -20,6 +20,7 @@ function App() {
       }
 
       const json = await res.json();
+	  console.log("API Response:", json);
       setImageUrl(json.imageUrl);
     } catch (err) {
       console.error("Error generating image:", err);
