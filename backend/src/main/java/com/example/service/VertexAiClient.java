@@ -77,7 +77,7 @@ public class VertexAiClient {
 		JsonNode predictions = json.path("predictions");
         if (predictions.isArray() && predictions.size() > 0) {
             String gcsUri = predictions.get(0).path("gcsUri").asText(null);
-            if (gcsUri != null) {
+            if (gcsUri != null && !gcsUri.isBlank()) {
              // GCS URI → HTTPS URL 변환
                 String httpsUrl = gcsUri.replace("gs://", "https://storage.googleapis.com/");
                 result.put("imageUrl", httpsUrl);
