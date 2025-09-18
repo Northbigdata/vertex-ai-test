@@ -12,6 +12,13 @@ import java.net.http.*;
 import java.time.Duration;
 import java.util.*;
 
+import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
+import com.google.cloud.storage.HttpMethod; // GCS용
+import java.net.URL;
+import java.util.concurrent.TimeUnit;
+
 @Service
 public class VertexAiClient {
 
@@ -78,9 +85,18 @@ public class VertexAiClient {
         if (predictions.isArray() && predictions.size() > 0) {
             String gcsUri = predictions.get(0).path("gcsUri").asText(null);
             if (gcsUri != null && !gcsUri.isBlank()) {
+				String bucketName = gcsUri.split("/")[2]; // gs://bucket/path/...
+                String objectName = gcsUri.substring(gcsUri.indexOf(bucketName) + bucketName.length() + 1);
+				Storage storage = StorageOptions.getDefaultInstance().getService();
+                URL signedUrl = storage.signUrl(
+                        BlobInfo.newBuilder(bucketName, objectName).build(),
+                        15, TimeUnit.MINUTES,  // 유효기간 15분
+                        Storage.SignUrlOption.withV4Signature(),
+                        Storage.SignUrlOption.httpMethod(HttpMethod.GET)
+                );
              // GCS URI → HTTPS URL 변환
-                String httpsUrl = gcsUri.replace("gs://", "https://storage.googleapis.com/");
-                result.put("imageUrl", httpsUrl);
+                //String httpsUrl = gcsUri.replace("gs://", "https://storage.googleapis.com/");
+                result.put("imageUrl", signedUrl.toString());
     }
 }			
         return result;
